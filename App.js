@@ -29,12 +29,35 @@ function saveData(todo){
     fs.writeFileSync('database.json', JSON.stringify(data))
 }
 
-let uniqueId = 1;
+
 //props come from yargs command builder
-function addTodo(uniqueId, todoBody, todoStatus){
-    
-    saveData({ id: uniqueId, todo:todoBody, status: todoStatus})
-    ;
+function addTodo(todoBody, todoStatus){
+    let data = loadData()
+    if (data.length === 0) {
+        todoId =1
+    } else if (data.length > 0) {
+        todoId = data[data.length-1].id+1
+    }
+    saveData({ id:todoId, todo:todoBody, status: todoStatus});
+    console.log(chalk.green("New event added"))
+}
+
+function deleteTodo (todoId) {
+    let data = loadData();
+    let filteredtodos = data.filter((data)=>data.id !== todoId);
+    fs.writeFileSync('database.json', JSON.stringify(filteredtodos))
+    console.log(chalk.blue(`Task ${todoId} has been deleted`))
+}
+
+function deleteAll(){
+    fs.writeFileSync('database.json', JSON.stringify([]))
+}
+
+function deleteStatus(bool){
+    let data = loadData();
+    let filteredtodos = data.filter((data) => data.status !== bool);
+    fs.writeFileSync('database.json', JSON.stringify(filteredtodos))
+    console.log(chalk.blue("Tasks has been deleted"))
 }
 
 yargs.command({
@@ -42,12 +65,10 @@ yargs.command({
     describe: "add a todo",
     //building will help to read the [3] and [4] of each new todo
     builder: {
-        id: {
-            describe: "unique id of the task",
-            demandOption: false,
-            type: "number",
-            default: uniqueId, 
-
+        todoId: {
+            describe: "Id of todo",
+            demandOption: false,//is it required?
+            type: '',
         },
         todo: {
             describe: "content of todo",
@@ -61,11 +82,8 @@ yargs.command({
             default: false,
         }
     },
-    handler: function({id, todo, status}){
-        addTodo(id, todo, status)
-        uniqueId ++;
-        console.log(chalk.green("New event added"))
-        
+    handler: function({todo, status}){
+        addTodo( todo, status)      
     }
 })
 
@@ -82,11 +100,11 @@ yargs.command({
     },
     handler: function (args) {
         const todos = loadData();
-        for (let {todo, status} of todos){
+        for (let {id, todo, status} of todos){
             if(args.status === "all"){
-                console.log(chalk.blue(todo), chalk.yellow(status))
+                console.log(chalk.red(id), chalk.blue(todo), chalk.yellow(status))
             } else if (status===args.status)
-                console.log(chalk.blue(todo), chalk.yellow(status))
+                console.log(chalk.red(id), chalk.blue(todo), chalk.yellow(status))
     }
     }
 })
@@ -95,22 +113,34 @@ yargs.command({
     command: "delete",
     describe: "delete a todo",
     builder: {
-        todo: {
-            describe: "content of todo",
-            demandOption: true,//is it required?
-            type: "string",
+        id: {
+            describe: "id of todo",
+            demandOption: false,//is it required?
+            type: "integer",
         },
         status: {
+            describe: "status of your todo",
+            demandOption: false,
+            type: "string"
+        },
+        all: {
             describe: "status of your todo",
             demandOption: false,
             type: "boolean",
             default: false,
         }
     },
-    handler: function ({ todo, status }) {
-        addTodo(todo, status)
-        console.log(chalk.green("New event added : ", todo))
-
+    handler: function ({ id, all, status }) {
+        if(id){
+            deleteTodo(id)
+        } else if (status){
+            if(status==="complete") deleteStatus(true) 
+            else if (status ==="incomplete") deleteStatus(false)
+        } else if (all){
+            deleteAll()
+        } else {
+            console.log("Enter a proper command")
+        }
     }
 })
 yargs.parse()
